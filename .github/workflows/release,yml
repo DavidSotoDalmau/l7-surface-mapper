@@ -1,0 +1,61 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: .exe
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            ext: ""
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            ext: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Install UPX
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y upx-ucl
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            brew install upx
+          fi
+
+      - name: Compress binary with UPX
+        run: |
+          BIN=target/${{ matrix.target }}/release/l7_surface_mapper${{ matrix.ext }}
+          if command -v upx >/dev/null 2>&1; then
+            upx --best --lzma $BIN || true
+          fi
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/${{ matrix.target }}/release/l7_surface_mapper${{ matrix.ext }}
