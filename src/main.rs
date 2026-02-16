@@ -246,7 +246,7 @@ let mut handles = Vec::new();
 
 // número base de workers
 let base_workers = config.concurrency;
-
+let index = Arc::new(AtomicUsize::new(0));
 for _ in 0..base_workers {
     let wordlist = wordlist.clone();
     let stop_flag = stop_flag.clone();
@@ -262,18 +262,22 @@ for _ in 0..base_workers {
     let active_requests = active_requests.clone();
     let stats = stats.clone();
     let results = results.clone();
-
+let index = index.clone();
     let handle = tokio::spawn(async move {
-        let mut index = 0;
+       
+        loop {
+			if stop_flag.load(Ordering::Relaxed) {
+				break;
+			}
 
-        while index < wordlist.len() {
-            if stop_flag.load(Ordering::Relaxed) {
-                break;
-            }
+			let i = index.fetch_add(1, Ordering::Relaxed);
 
-            let path = &wordlist[index];
-            index += 1;
+			if i >= wordlist.len() {
+				break;
+			}
 
+			let path = &wordlist[i];
+          
             while active_requests.load(Ordering::Relaxed)
                 >= current_concurrency.load(Ordering::Relaxed)
             {
