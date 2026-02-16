@@ -39,20 +39,29 @@ jobs:
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Install UPX
+      # 🔹 Install UPX (Linux)
+      - name: Install UPX (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            sudo apt-get update
-            sudo apt-get install -y upx-ucl
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            brew install upx
-          fi
+          sudo apt-get update
+          sudo apt-get install -y upx-ucl
+
+      # 🔹 Install UPX (macOS)
+      - name: Install UPX (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install upx
+
+      # 🔹 Install UPX (Windows)
+      - name: Install UPX (Windows)
+        if: matrix.os == 'windows-latest'
+        run: choco install upx -y
 
       - name: Compress binary with UPX
+        shell: bash
         run: |
           BIN=target/${{ matrix.target }}/release/l7_surface_mapper${{ matrix.ext }}
           if command -v upx >/dev/null 2>&1; then
-            upx --best --lzma $BIN || true
+            upx --best --lzma "$BIN" || true
           fi
 
       - name: Upload to Release
