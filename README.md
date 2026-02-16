@@ -26,9 +26,95 @@ environments.
 -   🛠 Configurable HTTP methods
 -   📦 Optimized release builds (LTO + strip + panic abort)
 -   🧵 Async architecture (Tokio)
+-   🔁 Dynamic concurrency (multi-phase adaptive control)
+-   🛑 Hard-stop on blocking detection
+-   🧠 WAF / Edge protection detection (multi-factor)
 
 ------------------------------------------------------------------------
 
+# ⚙️ Dynamic Concurrency Engine
+
+Unlike traditional fuzzers using static concurrency, this engine
+implements a **multi-phase adaptive controller**:
+
+### Phase 1 -- Fast Ramp-Up
+
+-   Aggressive scaling (+200)
+-   Quickly finds backend limits
+
+### Phase 2 -- Coarse Adjustment
+
+-   Medium step scaling (+50 / -25%)
+-   Stabilizes near ceiling
+
+### Phase 3 -- Fine Tuning
+
+-   Small adjustments (+/-5)
+-   Maintains stable maximum throughput
+
+### Adaptive Downscaling Triggers
+
+-   High `429` ratio
+-   High `403` ratio
+-   Latency \> 2× baseline
+-   Silent congestion detection
+
+The engine reacts automatically and adjusts in real-time.
+
+------------------------------------------------------------------------
+
+# 🛡 WAF / Edge Protection Detection
+
+The tool performs multi-layer WAF detection:
+
+## 1️⃣ Passive Fingerprinting
+
+-   Header inspection
+-   Vendor identification (Cloudflare, Imperva, Vercel Edge, AWS,
+    Akamai, etc.)
+
+## 2️⃣ Active Probe
+
+-   Lightweight probe request
+-   Detects infrastructure-level blocking behavior
+
+## 3️⃣ Behavioral Detection
+
+-   403 ratio analysis
+-   429 ratio analysis
+-   Latency anomaly detection
+
+## 4️⃣ Body Fingerprinting
+
+-   Detection of challenge pages
+-   Detection of "Access Denied" templates
+-   Edge-specific block signatures
+
+### Example Output
+
+    [WAF] Detected: ReverseProxy | Vendor: Some("Vercel Edge") | Confidence: 85%
+      └─ x-vercel-mitigated header detected
+      └─ High 403 ratio detected
+
+------------------------------------------------------------------------
+
+# 🛑 Automatic Hard Stop
+
+If strong blocking behavior is confirmed:
+
+-   High sustained 403 ratio
+-   High sustained 429 ratio
+-   Confirmed WAF signals
+
+The engine:
+
+-   Immediately stops creating new requests
+-   Halts worker pool
+-   Prints clean final results
+
+No runaway request storms.
+
+------------------------------------------------------------------------
 ## 📦 Installation
 
 Clone the repository:
