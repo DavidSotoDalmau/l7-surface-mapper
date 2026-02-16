@@ -4,7 +4,6 @@ use serde::Serialize;
 pub struct Baseline {
     pub status: u16,
     pub content_length: usize,
-    pub body_hash: String,
 }
 
 #[derive(Debug)]
@@ -12,8 +11,9 @@ pub struct ResponseInfo {
     pub path: String,
     pub status: u16,
     pub content_length: usize,
-    pub body_hash: String,
     pub latency_ms: u128,
+	pub headers: hyper::HeaderMap,
+	pub body_sample: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
