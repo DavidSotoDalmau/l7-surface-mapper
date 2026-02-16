@@ -1,21 +1,40 @@
 # L7 Surface Mapper
 
-High-performance HTTP endpoint discovery tool written in Rust.
+High-performance HTTP endpoint and parameter discovery tool written in Rust.
 
-## Features
+Built with **Hyper** for maximum throughput and minimal overhead.
 
-- Hyper-based HTTP engine
-- HTTP/1.1 + HTTP/2
-- Baseline filtering
-- Rate limit detection
-- Progress bar
-- No body download mode
-- High throughput (70k+ req/s local)
+---
 
-## Usage
+## 🚀 Features
+
+- ⚡ Hyper-based HTTP engine (no reqwest overhead)
+- 🔥 High throughput (70k+ req/s local benchmark)
+- 🎯 Endpoint fuzzing
+- 🎯 Parameter fuzzing (GET & POST)
+- 🔁 `FUZZ` placeholder support in:
+  - URL
+  - Query string
+  - POST body
+- 📊 Progress bar
+- 🧠 Baseline response filtering
+- 📉 Basic rate limit detection
+- 🧵 Concurrent async architecture (Tokio)
+- 🛠 Configurable HTTP methods:
+  - GET
+  - POST
+  - HEAD
+  - PUT
+  - DELETE
+  - OPTIONS
+- 📦 Optimized release build (LTO + strip + panic abort)
+
+---
+
+## 📦 Installation
+
+Clone the repository:
 
 ```bash
-l7_surface_mapper.exe \
-  --target http://127.0.0.1:8080 \
-  --wordlist wordlist.txt \
-  --concurrency 500
+git clone https://github.com/youruser/l7-surface-mapper.git
+cd l7-surface-mapper
