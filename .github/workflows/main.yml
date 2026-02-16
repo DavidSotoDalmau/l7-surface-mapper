@@ -1,6 +1,7 @@
 name: Build & Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"
@@ -18,12 +19,15 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            platform: windows-x86_64
             ext: .exe
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            platform: linux-x86_64
             ext: ""
           - os: macos-latest
             target: x86_64-apple-darwin
+            platform: macos-x86_64
             ext: ""
 
     steps:
@@ -39,32 +43,34 @@ jobs:
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
 
-      # 🔹 Install UPX (Linux)
       - name: Install UPX (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y upx-ucl
 
-      # 🔹 Install UPX (macOS)
       - name: Install UPX (macOS)
         if: matrix.os == 'macos-latest'
         run: brew install upx
 
-      # 🔹 Install UPX (Windows)
       - name: Install UPX (Windows)
         if: matrix.os == 'windows-latest'
         run: choco install upx -y
 
-      - name: Compress binary with UPX
+      - name: Prepare binary
         shell: bash
         run: |
+          VERSION=${GITHUB_REF#refs/tags/}
           BIN=target/${{ matrix.target }}/release/l7_surface_mapper${{ matrix.ext }}
+          NEW_NAME=l7_surface_mapper-${VERSION}-${{ matrix.platform }}${{ matrix.ext }}
+
+          cp "$BIN" "$NEW_NAME"
+
           if command -v upx >/dev/null 2>&1; then
-            upx --best --lzma "$BIN" || true
+            upx --best --lzma "$NEW_NAME" || true
           fi
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/${{ matrix.target }}/release/l7_surface_mapper${{ matrix.ext }}
+          files: l7_surface_mapper-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.ext }}
