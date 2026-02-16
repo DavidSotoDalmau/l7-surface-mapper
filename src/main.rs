@@ -316,6 +316,12 @@ let index = index.clone();
                 }
 
                 if let Some(finding) = analyzer::analyze(&resp, &baseline) {
+					 pb.println(format!(
+						"[+] {} (status: {}, {} bytes)",
+						finding.path,
+						finding.status,
+						finding.content_length
+					));
                     let mut guard = results.lock().await;
                     guard
                         .entry(finding.status)
