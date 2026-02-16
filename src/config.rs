@@ -11,4 +11,10 @@ pub struct Config {
 
     #[arg(long, default_value_t = 100)]
     pub concurrency: usize,
+	
+	#[arg(long, default_value = "GET")]
+    pub method: String,
+	
+	#[arg(long)]
+	pub data: Option<String>,
 }

@@ -69,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
     // 🔍 Baseline detection
     let random_path = "this_path_should_not_exist_123456";
    let baseline_resp =
-    http_engine::fetch(&client, &config.target, random_path).await?;
+    http_engine::fetch(&client, &config.target, random_path,&config.method, config.data.as_deref()).await?;
 
 let baseline_resp = match baseline_resp {
     Some(r) => r,
@@ -92,9 +92,10 @@ let baseline = baseline::build_baseline(&baseline_resp);
             let rate_detector = rate_detector.clone();
             let counter = counter.clone();
             let pb = pb.clone();
-
+			let method = config.method.clone();
+			let data = config.data.clone();
             async move {
-                if let Ok(Some(resp)) = http_engine::fetch(&client, &target, path).await {
+                if let Ok(Some(resp)) = http_engine::fetch(&client, &target, path, &method, data.as_deref()).await {
                     {
                         let mut guard = rate_detector.lock().await;
                         guard.record(resp.status);
