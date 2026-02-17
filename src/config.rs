@@ -17,4 +17,26 @@ pub struct Config {
 	
 	#[arg(long)]
 	pub data: Option<String>,
+	
+	// =============================
+    // Infra-aware & Adaptive flags
+    // =============================
+
+    #[arg(long, default_value_t = false)]
+    pub infra_aware: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub infra_report: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub stop_on_block: bool,
+
+    #[arg(long, default_value = "balanced")]
+    pub adaptive_mode: String,
+
+    #[arg(long, default_value_t = 5000)]
+    pub max_concurrency: usize,
+	
+	#[arg(long, default_value_t = false)]
+	pub fingerprint_only: bool,
 }

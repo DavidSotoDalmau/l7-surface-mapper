@@ -5,7 +5,7 @@ mod analyzer;
 mod rate_limit;
 mod models;
 mod waf;
-
+mod infra;
 use std::time::Duration;
 use clap::Parser;
 use memmap2::Mmap;
@@ -13,7 +13,7 @@ use std::fs::File;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, AtomicU64, Ordering, AtomicBool};
 use tokio::sync::Mutex;
-
+use infra::analyze as infra_analyze;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::{HashMap,HashSet};
 use hyper::Client;
@@ -57,16 +57,36 @@ async fn main() -> anyhow::Result<()> {
 	let stats_clone = stats.clone();
 	let current_clone = current_concurrency.clone();
 	let stop_flag_clone = stop_flag.clone();  
+	let adaptive_mode = config.adaptive_mode.clone();
+	let max_concurrency = config.max_concurrency.clone();
+	let stop_on_block = config.stop_on_block.clone();
 	tokio::spawn(async move {
 		let mut baseline_latency: Option<f64> = None;
 		let mut phase: u8 = 1; // 1=fast, 2=medium, 3=fine
 		let mut ceiling_estimate: usize = current_clone.load(Ordering::Relaxed);
 
 		// parámetros configurables
-		let fast_step = 200;
-		let medium_step = 50;
-		let fine_step = 5;
-
+		let mut fast_step = 200;
+		let mut medium_step = 50;
+		let mut fine_step = 5;
+		match adaptive_mode.as_str() {
+			"aggressive" => {
+				fast_step = 300;
+				medium_step = 75;
+				fine_step =20;
+			}
+			"balanced" => {
+				fast_step = 200;
+				medium_step = 50;
+				fine_step=5;
+			}
+			"conservative" => {
+				fast_step = 50;
+				medium_step = 20;
+				fine_step=1;
+			}
+			_ => {}
+		}
 		loop {
 			tokio::time::sleep(Duration::from_secs(3)).await;
 
@@ -130,13 +150,13 @@ async fn main() -> anyhow::Result<()> {
 			if ratio_429 > 0.0 && ratio_429 <= 0.05 {
 				new = current.saturating_sub(fine_step);
 			}
-			if ratio_429 > 0.3 || ratio_403 > 0.4 {
+			if stop_on_block && (ratio_429 > 0.3 || ratio_403 > 0.4) {
 				println!("\n[WAF] High block ratio detected. Aborting.");
 				stop_flag_clone.store(true, Ordering::Relaxed);
 				current_clone.store(0, Ordering::Relaxed);
 			}
 			// Clamp de seguridad
-			new = new.clamp(1, 5000);
+			new = new.clamp(1, max_concurrency);
 
 			if new != current {
 				current_clone.store(new, Ordering::Relaxed);
@@ -204,6 +224,70 @@ let wordlist: Vec<String> = std::str::from_utf8(&mmap)?
 	let baseline = baseline::build_baseline(&baseline_resp);
 
     println!("Baseline established: {:?}", baseline);
+	let mut infra_profile = None;
+
+	if config.infra_aware {
+		let url = url::Url::parse(&config.target)?;
+		let hostcert = url.host_str().unwrap_or_default();
+		// Latencia inicial como baseline
+		let baseline_latency = baseline_resp.latency_ms as f64 / 1000.0;
+
+		let profile = infra_analyze(
+			&baseline_resp,
+			baseline_latency,
+			baseline_latency, 
+			None,
+			hostcert
+		).await;
+
+		println!("\n========== Infrastructure Profile ==========");
+
+		if let Some(edge) = &profile.edge {
+			println!("Edge Layer: {}", edge);
+		}
+
+		if let Some(backend) = &profile.backend_server  {
+			println!("Backend: {}", backend);
+		}
+
+		if let Some(tls) = &profile.tls_issuer {
+			println!("TLS: {}", tls);
+		}
+
+		if profile.cold_start_detected {
+			println!("Cold Start Behavior: Yes");
+		}
+
+		if let Some(mitigation) = &profile.mitigation {
+			println!("Mitigation: {}", mitigation);
+		}
+
+		println!("============================================\n");
+		use infra::report::generate;
+		let report = generate(&profile);
+		infra_profile = Some(profile);
+		
+
+		println!("\n========== Infra Summary ==========");
+		for line in report.summary {
+			println!("{}", line);
+		}
+		println!("Confidence: {}%", report.confidence);
+		println!("===================================\n");
+
+	}
+	if let Some(profile) = &infra_profile {
+		if let Some(edge) = &profile.edge {
+			if edge.contains("Vercel") || edge.contains("Cloudflare") {
+				// Infra de edge fuerte → bajar agresividad
+				current_concurrency.store(
+					(config.concurrency as f64 * 0.6) as usize,
+					Ordering::Relaxed
+				);
+			}
+		}
+	}
+	
 	// --- WAF Detection ---
 	let waf_result = waf_analyze(
 		&client,
@@ -247,6 +331,10 @@ let mut handles = Vec::new();
 // número base de workers
 let base_workers = config.concurrency;
 let index = Arc::new(AtomicUsize::new(0));
+if config.fingerprint_only {
+    println!("\n[FINGERPRINT] Fingerprint-only mode enabled. Exiting.\n");
+    return Ok(());
+}
 for _ in 0..base_workers {
     let wordlist = wordlist.clone();
     let stop_flag = stop_flag.clone();
@@ -389,6 +477,15 @@ for h in handles {
 			}
 
 			println!();
+		}
+	}
+	if config.infra_report {
+		if let Some(profile) = infra_profile {
+			println!("\n========== Final Infrastructure Summary ==========");
+
+			println!("{:#?}", profile);
+
+			println!("=================================================\n");
 		}
 	}
     Ok(())
