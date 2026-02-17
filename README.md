@@ -1,7 +1,7 @@
 # L7 Surface Mapper
 
-High-performance HTTP endpoint and parameter discovery tool written in
-Rust.
+High-performance HTTP endpoint discovery and infrastructure profiling
+tool written in **Rust**.
 
 Built on **Hyper + Tokio** for maximum throughput and minimal overhead.
 
@@ -16,19 +16,77 @@ environments.
 -   🔥 High throughput (70k+ req/s local benchmark)
 -   🎯 Endpoint fuzzing
 -   🎯 Parameter fuzzing (GET & POST)
--   🔁 `FUZZ` placeholder support in:
-    -   URL
-    -   Query string
-    -   POST body
+-   🔁 `FUZZ` placeholder support (URL + Query + Body)
 -   🧠 Baseline response filtering
--   📉 Basic rate-limit detection
+-   📉 Sliding window rate-limit detection
 -   📊 Concurrent progress bar
--   🛠 Configurable HTTP methods
--   📦 Optimized release builds (LTO + strip + panic abort)
 -   🧵 Async architecture (Tokio)
--   🔁 Dynamic concurrency (multi-phase adaptive control)
--   🛑 Hard-stop on blocking detection
--   🧠 WAF / Edge protection detection (multi-factor)
+-   🔁 Multi-phase dynamic concurrency engine
+-   🛑 Hard-stop on confirmed blocking
+-   🛡 Multi-layer WAF detection
+-   🌐 Enterprise CDN / Edge detection
+-   🏗 CMS detection (WordPress, Drupal, AEM, etc.)
+-   ⚙ Backend framework fingerprinting
+-   🧬 SPA vs SSR classification
+-   🔐 TLS issuer & protocol intelligence
+-   🧠 Architecture inference
+-   🔎 Fingerprint-only mode (no fuzzing)
+
+
+------------------------------------------------------------------------
+
+# 🧠 Infrastructure & Enterprise Detection
+
+Detects: - Cloudflare - Akamai - Fastly - AWS CloudFront - AWS ALB -
+Azure Front Door - Google Frontend (GFE) - Envoy / Service Mesh -
+HAProxy - Varnish - Imperva - F5 BigIP
+
+Example:
+
+    Enterprise Components:
+      - Cloudflare CDN / WAF
+    Estimated Proxy Layers: 2
+
+------------------------------------------------------------------------
+
+# 🔐 TLS Intelligence
+
+-   TLS issuer classification
+-   Commercial vs DV CA detection
+-   Cloud provider TLS mapping
+-   HTTP/2 / ALPN hints
+-   Alt-Svc detection
+
+Example:
+
+    TLS: Google Trust Services (WR2)
+
+------------------------------------------------------------------------
+
+# 🏗 CMS & Platform Detection
+
+Detects: - WordPress (+ plugin hints) - Drupal - Joomla - Adobe
+Experience Manager (AEM) - Sitecore - Liferay - Magento - Shopify - SAP
+Hybris
+
+------------------------------------------------------------------------
+
+# ⚙ Backend Framework Detection
+
+Detects: - Django - Flask - FastAPI - Express - NestJS - Spring Boot -
+Tomcat - ASP.NET - Ruby on Rails
+
+------------------------------------------------------------------------
+
+# 🔍 Fingerprint-Only Mode
+
+``` bash
+l7_surface_mapper \
+  --target https://example.com \
+  --fingerprint-only \
+  --infra-aware \
+  --infra-report
+```
 
 ------------------------------------------------------------------------
 
@@ -151,15 +209,58 @@ l7_surface_mapper \
 
 # ⚙️ Parameters
 
-  Flag              Description
-  ----------------- ---------------------------------
-  `--target`        Target base URL
-  `--wordlist`      Path to wordlist file
-  `--concurrency`   Number of concurrent requests
-  `--method`        HTTP method (default: GET)
-  `--data`          Request body (for POST/PUT/etc)
+  -----------------------------------------------------------------------
+  Flag                    Description
+  ----------------------- -----------------------------------------------
+  `--target`              Target base URL
+
+  `--wordlist`            Path to wordlist file
+
+  `--concurrency`         Number of concurrent requests (initial value
+                          for adaptive engine)
+
+  `--method`              HTTP method (`GET`, `POST`, `PUT`, `DELETE`,
+                          `HEAD`, `OPTIONS`)
+
+  `--data`                Request body (used for POST/PUT/etc)
+
+  `--fingerprint-only`    Perform stack fingerprinting only (no fuzzing)
+
+  `--infra-aware`         Enable infrastructure detection layer
+
+  `--infra-report`        Print detailed infrastructure report
+
+  `--adaptive-mode`       Concurrency strategy: `aggressive`, `balanced`,
+                          `conservative`
+  -----------------------------------------------------------------------
 
 ------------------------------------------------------------------------
+
+## 🧪 Example -- Full Recon Mode
+
+``` bash
+l7_surface_mapper \
+  --target https://example.com \
+  --wordlist common.txt \
+  --concurrency 400 \
+  --infra-aware \
+  --infra-report \
+  --adaptive-mode balanced
+```
+
+------------------------------------------------------------------------
+
+## 🔎 Example -- Stack Intelligence Only
+
+``` bash
+l7_surface_mapper \
+  --target https://example.com \
+  --fingerprint-only \
+  --infra-aware \
+  --infra-report
+```
+------------------------------------------------------------------------
+
 
 # 🔁 FUZZ Placeholder Logic
 
