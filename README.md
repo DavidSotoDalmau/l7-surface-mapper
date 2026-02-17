@@ -1,3 +1,11 @@
+<p align="center">
+  <img src="assets/App.png" width="200">
+</p>
+<h1 align="center">L7 Surface Mapper</h1>
+
+<p align="center">
+  ⚔️ High-Performance Stack Intelligence Engine
+</p>
 # L7 Surface Mapper
 
 High-performance HTTP endpoint discovery and infrastructure profiling
