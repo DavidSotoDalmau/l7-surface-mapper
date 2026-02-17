@@ -6,6 +6,7 @@ mod rate_limit;
 mod models;
 mod waf;
 mod infra;
+mod app;
 use std::time::Duration;
 use clap::Parser;
 use memmap2::Mmap;
@@ -19,7 +20,7 @@ use std::collections::{HashMap,HashSet};
 use hyper::Client;
 use hyper_rustls::HttpsConnectorBuilder;
 use waf::analyze as waf_analyze;
-
+use app::analyze as app_analyze;
 use config::Config;
 use rate_limit::RateLimiterDetector;
 
@@ -38,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     Arc::new(Mutex::new(HashMap::new()));
     // 🔥 Hyper HTTPS Connector
     let https = HttpsConnectorBuilder::new()
-        .with_native_roots()
+        .with_webpki_roots() 
         .https_or_http()
         .enable_http1()
         .build();
@@ -326,12 +327,71 @@ let wordlist: Vec<String> = std::str::from_utf8(&mmap)?
     let rate_detector = Arc::new(Mutex::new(RateLimiterDetector::new(200)));
 
     let wordlist = Arc::new(wordlist);
-let mut handles = Vec::new();
+	let mut handles = Vec::new();
 
-// número base de workers
-let base_workers = config.concurrency;
-let index = Arc::new(AtomicUsize::new(0));
+	// número base de workers
+	let base_workers = config.concurrency;
+	let index = Arc::new(AtomicUsize::new(0));
+	let root_resp = http_engine::fetch(
+		&client,
+		&config.target,
+		"",                 // 👈 path vacío
+		&config.method,
+		None
+	).await?;
+	let root_resp = match root_resp {
+		Some(r) => r,
+		None => {
+			println!("Root request failed.");
+			return Ok(());
+		}
+	};
+	if let Some(body) = &root_resp.body_sample {
+    println!("Body length captured: {}", body.len());
+}
+	let app_profile = app_analyze(&root_resp);
+
+	println!("\n========== Application Profile ==========");
+
+	if let Some(lang) = &app_profile.language {
+		println!("Language: {}", lang);
+	}
+
+	if let Some(framework) = &app_profile.framework {
+		println!("Framework: {}", framework);
+	}
+
+	if let Some(frontend) = &app_profile.frontend_type {
+		println!("Frontend Type: {}", frontend);
+	}
+
+	if let Some(api) = &app_profile.api_type {
+		println!("API Type: {}", api);
+	}
+
+	if let Some(cms) = &app_profile.cms {
+		println!("CMS: {}", cms);
+	}
+
+	println!("Confidence: {}%", infra_profile.clone().unwrap().confidence);
+	println!("=========================================\n");
+	if let Some(ref profile) = infra_profile {
+
+		println!("Confidence: {}%", profile.confidence);
+
+		if !profile.enterprise_components.is_empty() {
+			println!("Enterprise Components:");
+			for c in &profile.enterprise_components {
+				println!("  - {}", c);
+			}
+		}
+
+		if profile.proxy_depth > 0 {
+			println!("Estimated Proxy Layers: {}", profile.proxy_depth);
+		}
+	}
 if config.fingerprint_only {
+	
     println!("\n[FINGERPRINT] Fingerprint-only mode enabled. Exiting.\n");
     return Ok(());
 }

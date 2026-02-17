@@ -7,10 +7,11 @@ pub mod behavior;
 pub mod tls_deep;
 pub mod correlation;
 pub mod report;
+pub mod enterprise;
 use crate::infra::tls_deep::classify_issuer;
 use crate::models::ResponseInfo;
 use crate::infra::correlation::correlate;
-
+use crate::infra::enterprise::{detect_enterprise_edge, estimate_proxy_depth};
 #[derive(Debug, Clone)]
 pub struct InfraProfile {
     pub edge: Option<String>,
@@ -26,6 +27,9 @@ pub struct InfraProfile {
     pub cold_start_detected: bool,
     pub estimated_ceiling: Option<usize>,
     pub mitigation: Option<String>,
+	pub enterprise_components: Vec<String>,
+	pub proxy_depth: usize,
+	pub confidence: u8,
 }
 
 impl InfraProfile {
@@ -44,6 +48,9 @@ impl InfraProfile {
             cold_start_detected: false,
             estimated_ceiling: None,
             mitigation: None,
+			enterprise_components: Vec::new(),
+			proxy_depth: 0,
+			confidence: 0,
         }
     }
 }
@@ -66,7 +73,8 @@ pub async fn analyze(
     profile.tls_issuer = tls::detect_tls(&resp.headers);
     profile.cold_start_detected = behavior::analyze_behavior(avg_latency, baseline_latency);
     profile.estimated_ceiling = estimated_ceiling;
-
+	profile.enterprise_components = detect_enterprise_edge(resp);
+	profile.proxy_depth = estimate_proxy_depth(resp);
     if let Some(tls) = tls_deep::analyze_tls(host).await {
         profile.tls_version = tls.tls_version;
         profile.tls_alpn = match tls.alpn.as_deref() {
@@ -79,7 +87,15 @@ pub async fn analyze(
         profile.tls_subject = tls.subject;
         profile.wildcard_cert = tls.is_wildcard;
     }
+let mut score = 0;
 
+if profile.edge.is_some() { score += 20; }
+if profile.backend_server.is_some() { score += 20; }
+if !profile.enterprise_components.is_empty() { score += 30; }
+if profile.proxy_depth > 0 { score += 10; }
+if profile.tls_issuer.is_some() { score += 10; }
+
+profile.confidence = score.min(100);
     if resp.status == 403 {
         profile.mitigation = Some("Infrastructure-level blocking detected".into());
     }

@@ -26,6 +26,18 @@ pub fn detect_framework(body: Option<&str>) -> Option<String> {
         if lower.contains("django") {
             return Some("Django".into());
         }
+		if lower.contains("<app-root") {
+			return Some("Angular".into());
+		}
+
+		if lower.contains("ng-version") {
+			return Some("Angular".into());
+		}
+		if lower.contains("/wp-content/") ||
+		   lower.contains("/wp-includes/") ||
+		   lower.contains("wp-json") {
+			return Some("WordPress".into());
+		}
     }
 
     None
