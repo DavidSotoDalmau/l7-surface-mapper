@@ -373,7 +373,9 @@ let wordlist: Vec<String> = std::str::from_utf8(&mmap)?
 		println!("CMS: {}", cms);
 	}
 
-	println!("Confidence: {}%", infra_profile.clone().unwrap().confidence);
+	if let Some(ref profile) = infra_profile {
+		println!("Confidence: {}%", profile.confidence);
+	}
 	println!("=========================================\n");
 	if let Some(ref profile) = infra_profile {
 
